@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sse-chat-server
+  namespace: apk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sse-chat-server
+  template:
+    metadata:
+      labels:
+        app: sse-chat-server
+    spec:
+      containers:
+      - name: sse-chat-server
+        image: sse-chat-server:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5000
+        resources:
+          limits:
+            cpu: "1"
+            memory: "512Mi"
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sse-chat-server
+  namespace: apk
+spec:
+  selector:
+    app: sse-chat-server
+  ports:
+  - protocol: TCP
+    port: 5000
+    targetPort: 5000
