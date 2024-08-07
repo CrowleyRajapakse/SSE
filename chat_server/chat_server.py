@@ -16,9 +16,12 @@ def event_stream(client):
 
 @app.route('/chat/send', methods=['POST'])
 def send_message():
-    message = request.form['message']
-    notify_clients(message)
-    return message + ' Message sent!'
+    if request.is_json:
+        data = request.get_json()
+        print(f"Received data: {data}")
+        notify_clients(data)
+        return {"status": "success", "message": "Message sent!"}, 200
+    return {"status": "error", "message": "Invalid JSON"}, 400
 
 @app.route('/chat/stream')
 def stream():

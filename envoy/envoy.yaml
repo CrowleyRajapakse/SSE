@@ -29,6 +29,64 @@ static_resources:
                   cluster: sse_chat_service
                   timeout: 0s
           http_filters:
+          - name: envoy.filters.http.lua
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+              inline_code: |
+                function envoy_on_request(request_handle)
+                  request_handle:logInfo("Inside on request start")
+                  local request_body = request_handle:body()
+                  if request_body then
+                    request_handle:logInfo("Request body object found")
+                    local body_length = request_body:length()
+                    if body_length > 0 then
+                      local body = request_body:getBytes(0, body_length)
+                      request_handle:logInfo("Request body content: " .. (body or "nil"))
+                      local message = body:match("message=(.*)")
+                      request_handle:logInfo("Extracted Request message: " .. (message or "nil"))
+                      if message then
+                        local json_message = string.format('{"message": "%s"}', message)
+                        request_handle:body():setBytes(json_message)
+                        request_handle:headers():replace("content-type", "application/json")
+                        request_handle:logInfo("Transformed request to JSON: " .. json_message)
+                      else
+                        request_handle:logInfo("No 'message' found in request body")
+                      end
+                    else
+                      request_handle:logInfo("Request body is empty")
+                    end
+                  else
+                    request_handle:logInfo("No request body found")
+                  end
+                  request_handle:logInfo("Inside on request end")
+                end
+
+                function envoy_on_response(response_handle)
+                  local random_number = math.random(1, 100)
+                  response_handle:logInfo(tostring(random_number) .. " Starting response body processing")
+
+                  local transform_chunk = function(chunk)
+                    local chunk_body = chunk:getBytes(0, chunk:length())
+                    response_handle:logInfo(tostring(random_number) .. " Received response chunk: " .. (chunk_body or "nil"))
+
+                    local message = chunk_body
+                    response_handle:logInfo(tostring(random_number) .. " Extracted Response message: " .. (message or "nil"))
+
+                    if message then
+                      local plain_text_message = "Tranformed message=" .. message
+                      response_handle:logInfo(tostring(random_number) .. " Transformed response to plain text: " .. plain_text_message)
+                      chunk:setBytes(plain_text_message)
+                    else
+                      response_handle:logInfo(tostring(random_number) .. " No 'message' field found in response chunk")
+                    end
+                  end
+
+                  for chunk in response_handle:bodyChunks() do
+                    transform_chunk(chunk)
+                  end
+
+                  response_handle:logInfo(tostring(random_number) .. " Completed response body processing")
+                end
           - name: envoy.filters.http.router
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
